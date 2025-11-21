@@ -6,9 +6,8 @@
 
 ## ✨ RAG 챗봇의 구조 (Architecture)
 
--   **멀티모달 이미지 캡션 생성**: YOLOv8 객체 탐지 결과를 GPT-4o, Kosmos-2와 같은 VLM 모델에 통합하여 상세하고 문맥에 맞는 캡션 생성.
--   **다양한 VLM 모델 비교**: BLIP, InstructBLIP, CLIP Interrogator 등 여러 모델들의 캡션 생성 성능을 비교 분석하여 각 모델의 특성과 강점 파악.
--   **캡션 후처리**: 생성된 캡션의 품질을 향상시키기 위한 후처리 및 정리 과정 포함.
+<img width="2206" height="674" alt="image" src="https://github.com/user-attachments/assets/8604cab2-f936-412e-a865-cdb98e1d1bde" />
+
 
 ## 🤖 사용된 모델 및 기술 스택 (Models & Tech Stack)
 
