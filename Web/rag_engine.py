@@ -153,9 +153,9 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 class AdvancedConversationalRAG:
     def __init__(self, vectorstore, model_name="helena29/Qwen2.5_LoRA_for_HTP"):
         self.history = []
-        self.retriever.cross_encoder = cross_encoder
         self.query_rewriter = AdvancedQueryRewriter()
         self.retriever = MultiQueryRetriever(vectorstore, self.query_rewriter)
+        self.retriever.cross_encoder = cross_encoder
 
         print("🔥 Loading Qwen HTP Model:", model_name)
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
