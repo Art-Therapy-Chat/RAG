@@ -1,36 +1,81 @@
-# RAG
+# 🚀 HTP (집-나무-사람) 도메인 특화 Advanced RAG 시스템
 
-## 🚀 프로젝트 개요 (Overview)
+## 💡 프로젝트 개요
 
-이 프로젝트는 RAG를 활용하여 사용자가 이미지를 그리면 이미지에 대한 캡션을 생성한 후 심리 해석본을 활용한 결과를 바탕으로 답변을 하는 기술입니다.
+본 프로젝트는 **HTP(House-Tree-Person) 그림 검사 해석 문서**를 활용하여, 대화 문맥 이해 기반 쿼리 재생성, Multi-modal 데이터 추출, Reranker 파인튜닝, 그리고 최종적으로 **전문적인 심리 해석을 제공하는 RAG 챗봇 API 서버**를 구축하는 것을 목표로 합니다.
 
-## ✨ RAG 챗봇의 구조 (Architecture)
+## ✨ 시스템 아키텍처 및 파이프라인 개요
 
 <img width="2206" height="674" alt="image" src="https://github.com/user-attachments/assets/8604cab2-f936-412e-a865-cdb98e1d1bde" />
 
 
-## 🤖 사용된 모델 및 기술 스택 (Models & Tech Stack)
+프로젝트는 크게 세 단계로 나뉩니다.
 
-이 프로젝트에서는 이미지 분석 및 캡션 생성을 위해 다음과 같은 최신 인공지능 모델과 기술을 사용했습니다.
+1.  **데이터 엔지니어링:** 복잡한 PDF에서 텍스트를 추출하고, RAG에 적합하도록 청킹 및 카테고리 태깅을 수행합니다.
+2.  **검색 모델 최적화:** Cross-Encoder Reranker를 HTP 데이터로 파인튜닝하여 검색 정확도를 극대화합니다.
+3.  **서비스화:** 최적화된 컴포넌트들을 통합하여 대화형 RAG API 서버를 구축합니다.
 
-### 모델 아키텍처
+---
 
--   **BAAI/bge-m3**:
-  
-    -  BGE‑M3는 BAAI에서 개발한 다목적 임베딩 모델로, dense, multi-vector, sparse 방식의 검색 기능을 하나의 모델에서 통합한다.
-    -  다국어 모델을 지원하므로 임베딩 모델을 파인튜닝하기 위한 베이스 모델로 사용하였다.
--   **klue/bert-base**:
-    -   KLUE(Benchmark)의 일부로 사전훈련된 한국어 BERT 모델로 크로스 인코더를 파인튜닝 하기 위해 사용하였다.
--   **BAAI/bge-reranker-v2-m3**:
-    -   BGE‑Reranker‑v2‑M3는 BAEI BGE 계열의 Cross-encoder 리랭커 모델이다.
-    -   경량이면서도 다국어 지원이 강하고, 빠른 추론이 가능하다.
-    -   BGE-M3 임베딩 모델을 기반(backbone)으로 사용하여 쿼리-문장 쌍의 관련성 점수를 계산하였기 때문에 파인튜닝한 임베딩 모델의 리랭커 모델로 적합하다고 판단하여 사용하였다.
+## 1. 데이터 엔지니어링 및 코퍼스 구축
 
+### 1.1. 텍스트 청킹 및 정제 (수기본 데이터)
 
-### 주요 기술 및 라이브러리
+* **목표:** RAG 검색에 적합한 독립적 의미 단위(청크)를 생성합니다.
+* **전략:** 번호(`\d+\.`) 및 기호(`■`, `*`) 기반의 계층적 청킹을 수행합니다.
+* **메타데이터:** 모든 청크에 '집', '나무', '사람' 카테고리를 할당하고, 수동 보정을 통해 데이터 정확도를 높입니다.
 
--   **Python**: 프로젝트의 주요 개발 언어.
--   **OpenAI API**: GPT-4o 모델과의 연동 및 활용.
--   **Hugging Face Transformers**: BLIP, InstructBLIP, Kosmos-2 등 다양한 VLM 모델의 불러오기 및 사용.
--   **Pillow (PIL)**: 이미지 처리 및 관리를 위한 라이브러리.
--   **google-colab / userdata**: Colab 환경에서 API 키를 안전하게 관리하고 개발을 진행합니다.
+### 1.2. PDF 멀티모달 텍스트 추출
+
+* **문제:** HTP 해석본 PDF의 복잡한 테이블 구조에서 텍스트 누락 및 구조 손실 방지.
+* **전략:**
+    * `fitz`를 사용하여 페이지별 **PNG 이미지** (시각적 레이아웃)와 **XML 텍스트** (디지털 텍스트)를 추출합니다.
+    * **GPT-4.1-mini** LLM에 이미지와 XML을 동시 입력하여, 테이블 구조를 해석하고 누락 없이 텍스트를 구조화하도록 지시합니다.
+
+---
+
+## 2. Reranker 모델 파인튜닝 실험
+
+검색 결과의 순위 정확도(Precision)를 높이기 위해 Cross-Encoder를 파인튜닝합니다.
+
+### 2.1. 하드 네거티브 샘플링 (HNS)
+
+* **사용 모델:** `HJUNN/bge-m3b-Art-Therapy-embedding-fine-tuning`
+* **트리플 생성:** 쿼리와 유사도는 높으나 정답은 아닌 문서(코사인 유사도 0.30 ~ 0.60 범위)를 네거티브 샘플로 선택하여 학습 난이도를 높입니다.
+
+### 2.2. 손실 함수 비교 실험 결과
+
+| 실험 모델 | 손실 함수 | 학습 방식 | 주요 특징 및 결과 |
+| :--- | :--- | :--- | :--- |
+| `bge-reranker-base` | **MarginRankingLoss** | Pairwise Ranking | Pos/Neg 스코어 차이(Margin)를 유지하여 스코어 발산을 방지하고 안정적인 점수 분포를 유도. |
+| `bge-reranker-v2-m3` | **CrossEntropyLoss** | Pairwise Ranking | Pos 로짓이 Neg 로짓보다 높도록 분류 문제로 접근하여 학습 (가장 안정적). |
+| `bge-reranker-base` | **BCEWithLogitsLoss** | Pairwise Classification | Label Smoothing(0.9/0.1) 적용을 통해 일반화 성능 향상 시도. |
+| `klue/bert-base` | **MSE Loss** | Pairwise Regression | 경량 모델(`klue/bert-base`)을 활용한 랭킹 학습 실험. |
+
+---
+
+## 3. Advanced Conversational RAG Engine 구현
+
+최적화된 컴포넌트를 통합하여 API 서비스가 가능한 대화형 RAG 엔진을 구축합니다.
+
+### 3.1. 임베딩 및 벡터 DB 설정
+
+* **임베딩 모델:** `HJUNN/bge-m3b-Art-Therapy-embedding-fine-tuning`
+* **DB:** `Chroma` (./chroma\_store)
+* **Wrapper:** `MyEmbeddings` 클래스를 사용하여 `AutoModel` 기반 임베딩을 LangChain 인터페이스에 맞게 통합.
+
+### 3.2. 핵심 검색 체인 (Retriever)
+
+| 모듈 | 기술 / 모델 | 역할 |
+| :--- | :--- | :--- |
+| **쿼리 재생성** | `AdvancedQueryRewriter` (`GPT-4o`) | 대화 기록을 기반으로 모호한 쿼리를 **Multi-Query JSON** 형식으로 재구성. |
+| **검색** | `MultiQueryRetriever` | 재생성된 쿼리별로 검색 후 결과를 통합 및 중복 제거. **카테고리 필터링**(`filter={"category": category}`) 적용. |
+| **재순위화** | `CrossEncoder` (`bge-reranker-v2-m3`) | 초기 검색 결과(k=5)에 대해 Reranking을 수행하여 쿼리당 **Top-2** 문서를 최종 선정. |
+
+### 3.3. 최종 응답 생성 (LLM)
+
+* **모델:** `helena29/Qwen2.5_LoRA_for_HTP` (HTP 파인튜닝 LLM)
+* **프롬프트:** 검색된 컨텍스트와 함께 전문 심리학자 역할을 부여하여, **사실 기반의 전문적인 한국어 해석** 답변을 생성하도록 유도합니다.
+* **대화 관리:** `history` 리스트에 이전 대화 기록을 저장하고, 다음 쿼리 재생성에 활용하여 대화 문맥을 유지합니다.
+
+---
