@@ -38,10 +38,13 @@
 
 검색 결과의 순위 정확도(Precision)를 높이기 위해 Cross-Encoder를 파인튜닝합니다.
 
-### 2.1. 하드 네거티브 샘플링 (HNS)
+### 2.1. 네거티브 샘플링 전략 (Negative Sampling)
 
-* **사용 모델:** `HJUNN/bge-m3b-Art-Therapy-embedding-fine-tuning`
-* **트리플 생성:** 쿼리와 유사도는 높으나 정답은 아닌 문서(코사인 유사도 0.30 ~ 0.60 범위)를 네거티브 샘플로 선택하여 학습 난이도를 높입니다.
+| 전략 | 설명 | 활용 손실 함수 |
+| :--- | :--- | :--- |
+| **하드 네거티브 샘플링 (HNS)** | 쿼리 임베딩과 **유사도는 높으나 정답은 아닌** 문서를 선택합니다. 코사인 유사도 0.30~0.60 사이의 문서를 필터링하여 선정했습니다. | MarginRankingLoss, BCE Loss |
+| **이지 네거티브 샘플링 (ENS)** | **랜덤하게** 문서를 선택하거나, 관련성이 매우 낮은 문서를 선택합니다. (코드에는 명시되지 않았지만 대비되는 개념으로 사용됨) | Pairwise Loss, MSE Loss |
+
 
 ### 2.2. 손실 함수 비교 실험 결과
 
@@ -70,7 +73,7 @@
 | :--- | :--- | :--- |
 | **쿼리 재생성** | `AdvancedQueryRewriter` (`GPT-4o`) | 대화 기록을 기반으로 모호한 쿼리를 **Multi-Query JSON** 형식으로 재구성. |
 | **검색** | `MultiQueryRetriever` | 재생성된 쿼리별로 검색 후 결과를 통합 및 중복 제거. **카테고리 필터링**(`filter={"category": category}`) 적용. |
-| **재순위화** | `CrossEncoder` (`bge-reranker-v2-m3`) | 초기 검색 결과(k=5)에 대해 Reranking을 수행하여 쿼리당 **Top-2** 문서를 최종 선정. |
+| **재순위화** | `CrossEncoder` ('HJUNN/bge_BCE_cross_encoder') | 초기 검색 결과(k=5)에 대해 Reranking을 수행하여 쿼리당 **Top-3** 문서를 최종 선정. |
 
 ### 3.3. 최종 응답 생성 (LLM)
 
