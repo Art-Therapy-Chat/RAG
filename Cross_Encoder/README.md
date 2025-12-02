@@ -48,7 +48,9 @@ Reranker 파인튜닝은 Query-Positive Document-Negative Document **삼중항(T
 | **특징** | **Label Smoothing**을 적용하여 Positive(0.9)와 Negative(0.1) 레이블을 사용하여 과적합을 방지하고 일반화 성능을 높입니다. |
 | **사용** | 하드 네거티브 삼중항을 사용하여 학습. |
 
-> * **그 외 실험:**  **Pairwise Loss**와 **MSE Loss**를 사용하여 랭킹 최적화 실험 및 **`bert-base`** 모델을 활용한 기본 모델 교체 실험도 진행되었습니다.
+
+
+> * **그 외 실험:**  **CrossEntropyLoss**와 **MSE Loss**를 사용하여 랭킹 최적화 실험 및 **`bert-base`** 모델을 활용한 기본 모델 교체 실험도 진행되었습니다.
 
 ---
 
