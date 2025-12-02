@@ -51,7 +51,7 @@ vectorstore = Chroma(
 # -------------------------------
 # CrossEncoder Reranker
 # -------------------------------
-cross_encoder_model_name = "BAAI/bge-reranker-v2-m3"
+cross_encoder_model_name = "HJUNN/bge_BCE_cross_encoder"
 
 cross_encoder = CrossEncoder(
     cross_encoder_model_name,
