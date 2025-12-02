@@ -33,12 +33,35 @@
     * **GPT-4.1-mini** LLM에 이미지와 XML을 동시 입력하여, 테이블 구조를 해석하고 누락 없이 텍스트를 구조화하도록 지시합니다.
 
 ---
+## 2. RAG 임베딩 모델 파인튜닝 
 
-## 2. Reranker 모델 파인튜닝 실험
+**미술 치료 캡션 검색 최적화**를 위해 범용 BGE-M3 모델을 도메인 특화 모델로 변환합니다. 
+
+### 2.1. 데이터 증강 및 학습 데이터 준비
+
+* **GPT-4o 캡션 생성:** 원본 문서를 기반으로 각 문서당 **다양하고 객관적인 그림 캡션(Query)** 쌍을 생성합니다.
+* **데이터셋 변환:** 생성된 `(Query, Document)` 쌍을 `SentenceTransformer`의 `InputExample` 형태로 변환합니다.
+
+### 2.2. Sentence Transformer 학습
+
+* **기반 모델:** `BAAI/bge-m3`
+* **손실 함수:** **Multiple Negatives Ranking Loss (MNRL)** 기법을 사용하여, 배치 내에서 Negative 샘플과의 거리는 멀리하고 Positive 쌍의 거리는 가깝게 만듭니다.
+* **학습 설정:**
+    * **Epochs:** 2
+    * **Batch Size:** 32
+    * **Warmup Steps:** 10%
+* **결과 모델:** `HJUNN/bge-m3b-Art-Therapy-embedding-fine-tuning`
+
+### 2.3. 성능 평가
+
+* **지표:** Information Retrieval Evaluator를 사용하여 **NDCG, MAP, Recall** 등의 지표를 통해 원본 모델 대비 검색 성능 향상을 검증합니다.
+
+----
+## 3. Reranker 모델 파인튜닝 실험
 
 검색 결과의 순위 정확도(Precision)를 높이기 위해 Cross-Encoder를 파인튜닝합니다.
 
-### 2.1. 네거티브 샘플링 전략 (Negative Sampling)
+### 3.1. 네거티브 샘플링 전략 (Negative Sampling)
 
 | 전략 | 설명 | 활용 손실 함수 |
 | :--- | :--- | :--- |
@@ -46,7 +69,7 @@
 | **이지 네거티브 샘플링 (ENS)** | **랜덤하게** 문서를 선택하거나, 관련성이 매우 낮은 문서를 선택합니다. (코드에는 명시되지 않았지만 대비되는 개념으로 사용됨) | Pairwise Loss, MSE Loss |
 
 
-### 2.2. 손실 함수 비교 실험 결과
+### 3.2. 손실 함수 비교 실험 결과
 
 | 실험 모델 | 손실 함수 | 학습 방식 | 주요 특징 및 결과 |
 | :--- | :--- | :--- | :--- |
@@ -57,17 +80,17 @@
 
 ---
 
-## 3. Advanced Conversational RAG Engine 구현
+## 4. Advanced Conversational RAG Engine 구현
 
 최적화된 컴포넌트를 통합하여 API 서비스가 가능한 대화형 RAG 엔진을 구축합니다.
 
-### 3.1. 임베딩 및 벡터 DB 설정
+### 4.1. 임베딩 및 벡터 DB 설정
 
 * **임베딩 모델:** `HJUNN/bge-m3b-Art-Therapy-embedding-fine-tuning`
 * **DB:** `Chroma` (./chroma\_store)
 * **Wrapper:** `MyEmbeddings` 클래스를 사용하여 `AutoModel` 기반 임베딩을 LangChain 인터페이스에 맞게 통합.
 
-### 3.2. 핵심 검색 체인 (Retriever)
+### 4.2. 핵심 검색 체인 (Retriever)
 
 | 모듈 | 기술 / 모델 | 역할 |
 | :--- | :--- | :--- |
@@ -75,7 +98,7 @@
 | **검색** | `MultiQueryRetriever` | 재생성된 쿼리별로 검색 후 결과를 통합 및 중복 제거. **카테고리 필터링**(`filter={"category": category}`) 적용. |
 | **재순위화** | `CrossEncoder` ('HJUNN/bge_BCE_cross_encoder') | 초기 검색 결과(k=5)에 대해 Reranking을 수행하여 쿼리당 **Top-3** 문서를 최종 선정. |
 
-### 3.3. 최종 응답 생성 (LLM)
+### 4.3. 최종 응답 생성 (LLM)
 
 * **모델:** `helena29/Qwen2.5_LoRA_for_HTP` (HTP 파인튜닝 LLM)
 * **프롬프트:** 검색된 컨텍스트와 함께 전문 심리학자 역할을 부여하여, **사실 기반의 전문적인 한국어 해석** 답변을 생성하도록 유도합니다.
